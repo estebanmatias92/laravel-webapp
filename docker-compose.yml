@@ -1,0 +1,137 @@
+data:
+  image: debian
+  volumes:
+    - .:/var/www:rw
+
+db:
+  image: mysql
+  environment:
+    - MYSQL_ROOT_PASSWORD=root
+    - MYSQL_DATABASE=seeds
+  volumes_from:
+    - data
+
+dbTest:
+  image: mysql
+  environment:
+    - MYSQL_ROOT_PASSWORD=root
+    - MYSQL_DATABASE=seeds
+  volumes_from:
+    - data
+
+php:
+  image: estebanmatias92/hhvm-improved:fastcgi
+  environment:
+    - SERVER_PORT=9000
+  volumes_from:
+    - data
+  links:
+    - db:mysql
+  working_dir: /var/www
+  entrypoint:
+    - dockerize
+    - -template
+    - docker/config/hhvm/php.tmpl:/etc/hhvm/php.ini
+    - hhvm
+  command: -m server
+
+server:
+  image: estebanmatias92/nginx
+  environment:
+    - FASTCGI_PASS_ADDRESS_IP=hhvm
+    - FASTCGI_PASS_ADDRESS_PORT=9000
+  ports:
+    - "80:80"
+  volumes_from:
+    - data
+  links:
+      - php:hhvm
+  working_dir: /var/www
+  entrypoint:
+    - dockerize
+    - -template
+    - docker/config/nginx/nginx.tmpl:/etc/nginx/nginx.conf
+    - -template 
+    - docker/config/nginx/default.tmpl:/etc/nginx/sites-enabled/default
+    - nginx
+
+composer:
+  image: estebanmatias92/composer-improved
+  environment:
+    - PROJECT_SOURCE=laravel/laravel
+    - SOURCE_TYPE=composer
+    - PROJECT_VERSION=4.1
+    - PROJECT_FLAGS=--no-scripts
+    - INSTALL_FLAGS=--no-interaction --prefer-dist
+  volumes_from:
+    - data
+  working_dir: /var/www
+  mem_limit: 512M
+  entrypoint:
+    - /entrypoint.sh
+    - composer
+  command: --version
+
+artisan:
+  image: estebanmatias92/hhvm-improved
+  volumes_from:
+    - data
+  links:
+    - db:mysql
+  working_dir: /var/www
+  entrypoint:
+    - dockerize
+    - -template
+    - docker/config/hhvm/artisan/php.tmpl:/etc/hhvm/php.ini
+    - hhvm
+    - artisan
+  command: --version
+
+phpunit:
+  image: estebanmatias92/hhvm-improved
+  volumes_from:
+    - data
+  working_dir: /var/www
+  entrypoint:
+    - dockerize
+    - -template
+    - docker/config/hhvm/phpunit/php.tmpl:/etc/hhvm/php.ini
+    - vendor/bin/phpunit
+
+npm:
+  image: node
+  volumes_from:
+    - data
+  working_dir: /var/www
+  entrypoint:
+    - npm
+  command: --version
+
+bower:
+  image: node
+  volumes_from:
+    - data
+  working_dir: /var/www
+  entrypoint:
+    - ./node_modules/bower/bin/bower
+    - --allow-root
+  command:
+    - --version
+
+yo:
+  image: estebanmatias92/yeoman
+  volumes_from:
+    - data
+  working_dir: /var/www
+  entrypoint:
+    - yo
+  command:
+    - --version
+
+grunt:
+  image: node
+  volumes_from:
+    - data
+  working_dir: /var/www
+  entrypoint:
+    - ./node_modules/grunt-cli/bin/grunt
