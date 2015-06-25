@@ -6,7 +6,7 @@ else
     DEPLOY_ENV="$1"
 fi
 
-alias docker-compose='docker-compose -p agrosistemas'
+alias docker-compose='docker-compose -p laravelwebapp'
 
 # init services
 docker-compose up -d data db php server
